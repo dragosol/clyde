@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.bak
+*.bak_*
+*.log
+*.jsonl
+.venv/
+venv/
+xcuserdata/
+build/
