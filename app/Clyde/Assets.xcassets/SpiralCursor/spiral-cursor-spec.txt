@@ -1,0 +1,184 @@
+CLYDE SPIRAL CURSOR — Design Spec & Animation Logic
+====================================================
+
+PURPOSE
+-------
+Replaces the blinking text cursor in Clyde's MessageBubbleView with an
+animated pine-colored spiral brushstroke that plays while the agent is
+processing/streaming. The spiral should look like a thick organic paint
+brushstroke with rough, living edges.
+
+VISUAL STYLE
+------------
+- Color: Pine green gradient from #3d7a42 (darker) to #6ab86a (lighter)
+- Stroke: Thick paintbrush look — NOT pen/marker. Rough, organic edges
+  like real paint on canvas.
+- Shape: A spiral that curls inward ~2.5 turns, tapering toward center.
+- Size in app: 16–20px inline with text.
+- Icon size: 1024x1024 for app icon use.
+
+THE SPIRAL PATH (SVG)
+---------------------
+viewBox: "-20 -15 140 145"
+
+M 84 16
+C 104 36, 112 70, 96 92
+C 80 114, 48 120, 22 106
+C -4 92, -14 60, 0 36
+C 14 12, 42 -4, 66 -2
+C 84 0, 98 14, 98 32
+C 98 52, 82 68, 64 72
+C 44 76, 26 64, 22 46
+C 18 28, 30 14, 46 12
+C 60 10, 72 22, 72 36
+C 72 48, 62 56, 52 56
+
+This is an open path (not closed). It spirals from the outer top-right
+inward to the center. Approximately 2.5 rotations. Total path length
+is roughly 600 units.
+
+Stroke properties:
+  stroke-width: 16
+  stroke-linecap: round
+
+GRADIENT
+--------
+Linear gradient, top-left to bottom-right:
+  0%:   #3d7a42 at 80% opacity
+  100%: #6ab86a at 100% opacity
+
+ORGANIC EDGE EFFECT (SVG "Living Edges")
+-----------------------------------------
+In the SVG prototypes, rough organic edges are achieved with an SVG
+filter combining fractalNoise turbulence + displacement mapping:
+
+  <filter>
+    <feTurbulence type="fractalNoise"
+      baseFrequency="0.04"   (use 0.06–0.08 for smaller renders)
+      numOctaves="5"
+      seed="3" />            (animate seed for living edges)
+    <feDisplacementMap
+      in="SourceGraphic"
+      scale="3.5" />         (use 2–2.5 for smaller renders)
+  </filter>
+
+This warps the edges of the stroke irregularly, making them look like
+paint rather than a clean vector line. The seed value cycles through
+3 → 7 → 11 → 5 → 3 over 3 seconds to make the edges ripple and shift
+like drying paint.
+
+FOR PROFESSIONAL SOFTWARE (After Effects, Procreate, etc.):
+  - Draw the spiral path as a thick brush stroke with a textured brush
+    that has rough/frayed edges (dry brush, oil paint, etc.)
+  - The edges should NOT be smooth — they should have organic variation
+    like a real paintbrush loaded with thick paint
+  - If animating: subtly shift/wobble the edges over time (not the
+    whole stroke, just the edge texture)
+
+
+ANIMATION PATTERNS (4 finalists from v11)
+==========================================
+
+A. DRAWING LOOP (no spin)
+--------------------------
+The stroke draws itself in from the outer edge to the center, holds
+briefly, then erases back out. Then loops.
+
+Logic (using stroke-dasharray/dashoffset):
+  stroke-dasharray: 600  (total path length)
+  stroke-dashoffset animation:
+    0.0s → 600  (fully hidden)
+    1.26s → 0   (fully drawn — 45% of 2.8s)
+    1.82s → 0   (hold — 65% of 2.8s)
+    2.8s → 600  (fully erased)
+    repeat
+
+Timing: 2.8s total cycle
+  - Draw in:  0 → 45% of cycle (1.26s)
+  - Hold:     45% → 65% (0.56s)
+  - Erase:    65% → 100% (0.98s)
+  - Easing: linear (the dashoffset interpolation)
+
+In professional software:
+  1. Animate a trim path from 0% → 100% over ~1.3s
+  2. Hold at 100% for ~0.5s
+  3. Animate trim start from 0% → 100% over ~1s (erases from tail)
+  4. Loop
+
+
+B. DRAWING LOOP + SPIN
+------------------------
+Same as A, but the entire spiral also rotates continuously.
+
+Rotation: 360° over 3.5s, linear, infinite
+Drawing: Same as A (2.8s cycle, same keyTimes)
+
+The rotation and draw cycles are intentionally different durations
+so they don't sync up — each loop looks slightly different.
+
+In professional software:
+  - Apply trim path animation from A
+  - Add continuous rotation to the layer: 360°/3.5s
+
+
+C. ENDLESS STROKE (no spin)
+-----------------------------
+A segment of the stroke continuously chases around the spiral path,
+like a snake. It never fully completes — only ~30% of the path is
+visible at any time.
+
+Logic:
+  stroke-dasharray: "180 420"
+    180 = visible segment length (~30% of 600)
+    420 = gap (remaining 70%)
+  stroke-dashoffset animation:
+    0.0s → 600
+    2.2s → 0
+    repeat (linear)
+
+The segment appears to travel from the outside inward, then wraps
+back to the outside seamlessly.
+
+In professional software:
+  1. Set trim path to show only 30% of the stroke at a time
+  2. Animate the offset/start position continuously
+     (0% → 100% over 2.2s, looping)
+  3. The visible segment slides along the path endlessly
+
+
+D. ENDLESS STROKE + SPIN
+--------------------------
+Same as C, but with continuous rotation added.
+
+Rotation: 360° over 4s, linear, infinite
+Dash animation: Same as C (2.2s cycle)
+
+Again, rotation and dash cycles are different durations for variety.
+
+In professional software:
+  - Apply sliding trim path from C
+  - Add continuous rotation: 360°/4s
+
+
+RECOMMENDED PICK
+----------------
+For the streaming cursor in Clyde, "D. Endless Stroke + Spin" or
+"B. Drawing Loop + Spin" feel most alive and "thinking"-like.
+The non-spinning versions (A, C) work better as static-ish logos.
+
+User preference from iteration: likes the drawing loop pattern and
+the endless stroke pattern equally. Wants organic brushstroke look
+at v8 thickness with living shifting edges.
+
+
+SVG SOURCE FILES
+----------------
+All prototypes are saved in the "Clyde" folder:
+  clyde-spiral-v7.html   — 7 animation options (first thick brush attempt)
+  clyde-spiral-v8.html   — 4 variants, fixed viewBox, no living edges
+  clyde-spiral-v9.html   — too thick (stroke-width 32)
+  clyde-spiral-v10.html  — way too thick (stroke-width 38)
+  clyde-spiral-v11.html  — FINAL: v8 thickness + v7 living edges ✓
+  clyde-spiral-icon.html — 1024x1024 for icon use (animated in browser)
+  clyde-spiral-icon.png  — 1024x1024 static PNG (black bg)
+  clyde-spiral-icon-transparent.png — 1024x1024 static PNG (transparent)
