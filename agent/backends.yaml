@@ -1,0 +1,126 @@
+# ~/.clyde/backends.yaml
+# ─────────────────────────────
+# Declares every transport Clyde can talk to, and the logical model
+# names Clyde (and any other client) resolves through the router.
+#
+# 2026-04-17: Consolidated to Qwen 3.6 35B-A3B MoE on llama.cpp.
+# 2026-04-20: Removed clyde, clyde-qwen, scratch-ollama and
+# the ollama-local backend. Default route is now `clyde`. The mlx-vlm
+# Pro tier and forked-mlx-flash Essential tier will land in Phase 3.
+
+default: lmstudio
+
+backends:
+  # Clyde Local — llama.cpp server for Qwen 3.6 35B MoE (Pro tier today).
+  # Managed — ProcessManager will launch/kill as needed.
+  clyde-local:
+    type: llamacpp
+    endpoint: http://127.0.0.1:8810
+    launch:
+      cmd: /opt/homebrew/bin/llama-server --model {model} --host 127.0.0.1 --port 8810 --ctx-size 131072 --n-gpu-layers 999 --cache-type-k q4_0 --cache-type-v q4_0 --flash-attn on --mmap --jinja --parallel 1 --cont-batching
+      idle_timeout: 600
+      log_file: /tmp/clyde-local.log
+      health_path: /health
+      startup_timeout: 90
+      port: 8810
+
+  # Clyde Remote — Fedora Ryzen + 7900 XTX rig over Tailscale.
+  # NOT managed — remote, externally running.
+  clyde-remote:
+    type: llamacpp
+    endpoint: http://fedora-rig.tailnet:8080
+
+  # Clyde Pro (Phase 3) — mlx-vlm + native TurboQuantKVCache(bits=3) for
+  # ≥32GB Macs. Same HTTP surface as mlx_vlm.server, no per-layer weight
+  # streaming (model fits resident). Multimodal-capable.
+  # type: llamacpp so LlamaCppBackend handles Qwen3 `<think>` splitting and
+  # XML tool-call parsing. mlx_vlm.server's /v1/chat/completions is
+  # OpenAI-compat just like llama-server — the wire format works.
+  clyde-pro-mlxvlm:
+    type: llamacpp
+    endpoint: http://127.0.0.1:8814
+    launch:
+      cmd: $HOME/Documents/Clyde\ App\ Project/mlx-flash/.venv/bin/python $HOME/Documents/Clyde\ App\ Project/clyde-benchmarks/mlx_vlm_turbo_server.py --model {model} --host 127.0.0.1 --port 8814 --kv-bits 3
+      idle_timeout: 600
+      log_file: /tmp/clyde-pro-mlxvlm.log
+      health_path: /v1/models
+      startup_timeout: 120
+      port: 8814
+
+  # Clyde Flash (Phase 3) — forked mlx-flash + mlx-vlm + TurboQuantKVCache(bits=3)
+  # + Flash weight streaming for 16-24GB Macs. Same vision-capable model as
+  # Pro tier. Prefix cache persistence on.
+  # type: llamacpp so LlamaCppBackend handles Qwen3 `<think>` splitting and
+  # XML tool-call parsing. Same reasoning as clyde-pro-mlxvlm above.
+  clyde-flash-mlxvlm:
+    type: llamacpp
+    endpoint: http://127.0.0.1:8815
+    launch:
+      cmd: $HOME/Documents/Clyde\ App\ Project/mlx-flash/.venv/bin/python $HOME/Documents/Clyde\ App\ Project/mlx-flash/scripts/flash_vlm_server.py --model {model} --host 127.0.0.1 --port 8815 --kv-quant-mode turbo3 --ram 4 --ctx-size 262144 --prefill-step-size 128 --debug --prefix-cache-dir $HOME/Library/Application\ Support/Clyde/prefix-cache
+      idle_timeout: 600
+      log_file: /tmp/clyde-flash-mlxvlm.log
+      health_path: /v1/models
+      startup_timeout: 300
+      port: 8815
+
+  # Remote / OpenAI-compatible (LiteLLM gateway, vLLM, etc.).
+  openai-compatible:
+    type: openai
+    endpoint: http://127.0.0.1:4000
+
+  # LM Studio on local network (desktop PC).
+  # NOT managed — externally running.
+  lmstudio:
+    type: llamacpp
+    endpoint: http://192.168.1.100:1234
+
+routes:
+  # Clyde Pro: Qwen 3.6 35B-A3B MoE on llama.cpp (24GB+ Macs).
+  # Will switch to mlx-vlm + arozanov turbo3 KV in Phase 3 (target 70-80 tok/s decode @ 262K).
+  clyde:
+    backend: clyde-local
+    model: $HOME/.clyde/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+    profile: qwen3_5-moe
+
+  # Clyde Pro (Phase 3) — mlx-vlm + native turbo3 KV. Multimodal, ≥32GB Macs.
+  clyde-pro:
+    backend: clyde-pro-mlxvlm
+    model: mlx-community/Qwen3.6-35B-A3B-4bit
+    profile: qwen3_5-moe
+
+  # Clyde Flash (Phase 3) — forked mlx-flash + turbo3 KV + Flash streaming.
+  # Same multimodal model as clyde-pro; sized for 16-24GB Macs.
+  clyde-flash:
+    backend: clyde-flash-mlxvlm
+    model: mlx-community/Qwen3.6-35B-A3B-4bit
+    profile: qwen3_5-moe
+
+  # ── Qwen 3.6 27B Dense variants ──
+  # 27B dense = 9x more active params than 35B-A3B MoE.
+  # Slower decode but significantly better instruction following + quality.
+
+  # 27B on llama.cpp
+  clyde-27b:
+    backend: clyde-local
+    model: $HOME/.clyde/models/Qwen3.6-27B-Q4_K_M.gguf
+    profile: qwen3_5-moe
+
+  # 27B on mlx-vlm (Pro tier) — same turbo3 KV server
+  clyde-27b-pro:
+    backend: clyde-pro-mlxvlm
+    model: mlx-community/Qwen3.6-27B-4bit
+    profile: qwen3_5-moe
+
+  # 27B on mlx-flash (Flash tier) — same flash server with streaming
+  clyde-27b-flash:
+    backend: clyde-flash-mlxvlm
+    model: mlx-community/Qwen3.6-27B-4bit
+    profile: qwen3_5-moe
+
+  # ── LM Studio (remote desktop) ──
+  # Whatever model is loaded in LM Studio. Model name is ignored —
+  # LM Studio uses whatever is currently loaded.
+  lmstudio:
+    backend: lmstudio
+    model: qwen/qwen3.5-9b
+    profile: qwen3_5-moe

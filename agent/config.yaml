@@ -1,0 +1,27 @@
+server:
+  host: 127.0.0.1
+  port: 8801
+backend:
+  url: http://localhost:8810
+  model: $HOME/.clyde/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+paths:
+  agent_home: ~/.clyde
+  memory_dir: ~/.clyde/memory
+  transcripts_dir: ~/.clyde/transcripts
+  sessions_dir: ~/.clyde/sessions
+memory:
+  index_file: MEMORY.md
+  max_index_lines: 200
+  max_topic_chars: 4000
+  max_total_instruction_chars: 12000
+session:
+  compact_after_tokens: 60000
+  preserve_recent_messages: 4
+agent:
+  max_iterations: 80
+  max_tokens: 4096
+  temperature: 0.7
+  tool_timeout: 30
+autodream:
+  schedule: 03:00
+  max_memories: 200
