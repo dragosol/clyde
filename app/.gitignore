@@ -1,0 +1,45 @@
+# macOS
+.DS_Store
+
+# Xcode user-specific files
+xcuserdata/
+*.xcuserstate
+*.xcuserstatebreakpoints
+
+# Xcode build output
+build/
+DerivedData/
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+Package.resolved
+
+# Backup / scratch files
+*.bak
+*.tmp
+*.orig
+
+# Cowork artifacts
+.cowork_mount_probe.txt
+
+# Finder duplicates (manually clean up these "<name> 2" files)
+*\ 2
+*\ 2.swift
+*\ 2.txt
+*\ 2.json
+*\ 2.md
+
+# Claude Code project-local config
+.claude/
+
+# Logs
+*.log
+
+# Caches
+__pycache__/
+*.pyc
+.gitnexus
